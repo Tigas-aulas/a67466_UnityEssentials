@@ -1,94 +1,56 @@
-using System;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.InputSystem; 
 
-public class PlayerController2D : MonoBehaviour
+/// <summary>
+/// Moves forward/backward and rotates with WASD/Arrow keys.
+/// </summary>
+public class PlayerController : MonoBehaviour
 {
-    // Public variables
-    public float speed = 5f; // The speed at which the player moves
-    public bool canMoveDiagonally = true; // Controls whether the player can move diagonally
-    
-    public InputActionReference moveAction;
+    [Tooltip("Forward/back speed (units/sec).")]
+    public float speed = 5.0f;
 
-    // Private variables 
-    private Rigidbody2D rb; // Reference to the Rigidbody2D component attached to the player
-    private Vector2 movement; // Stores the direction of player movement
-    private bool isMovingHorizontally = true; // Flag to track if the player is moving horizontally
+    [Tooltip("Turn speed (degrees/sec).")]
+    public float rotationSpeed = 120.0f;
 
-    private void OnEnable()
+	public float jumpForce=5.0f;
+
+    private Rigidbody rb; 
+
+    private void Start()
     {
-        moveAction.action.Enable();
+        rb = GetComponent<Rigidbody>();
+        if (rb == null) Debug.LogWarning("PlayerController needs a Rigidbody.");
     }
 
-    void Start()
+    private void FixedUpdate() 
     {
-        // Initialize the Rigidbody2D component
-        rb = GetComponent<Rigidbody2D>();
-        // Prevent the player from rotating
-        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-    }
+        Vector2 moveInput = Vector2.zero;
 
-    void Update()
-    {
-        // Get player input from keyboard or controller
-        Vector2 moveInput = moveAction.action.ReadValue<Vector2>();
-        
-        float horizontalInput = moveInput.x;
-        float verticalInput = moveInput.y;
+        // Forward/backward
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)   moveInput.y = 1f;
+        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) moveInput.y = -1f;
 
-        // Check if diagonal movement is allowed
-        if (canMoveDiagonally)
-        {
-            // Set movement direction based on input
-            movement = new Vector2(horizontalInput, verticalInput);
-            // Optionally rotate the player based on movement direction
-            RotatePlayer(horizontalInput, verticalInput);
-        }
-        else
-        {
-            // Determine the priority of movement based on input
-            if (horizontalInput != 0)
-            {
-                isMovingHorizontally = true;
-            }
-            else if (verticalInput != 0)
-            {
-                isMovingHorizontally = false;
-            }
+        // Left/right (rotation)
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) moveInput.x = -1f;
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)moveInput.x = 1f;
 
-            // Set movement direction and optionally rotate the player
-            if (isMovingHorizontally)
-            {
-                movement = new Vector2(horizontalInput, 0);
-                RotatePlayer(horizontalInput, 0);
-            }
-            else
-            {
-                movement = new Vector2(0, verticalInput);
-                RotatePlayer(0, verticalInput);
-            }
-        }
-    }
+        // Move in facing direction 
+        Vector3 movement = transform.forward * moveInput.y * speed * Time.fixedDeltaTime;
+        rb.MovePosition(rb.position + movement);
 
-    void FixedUpdate()
-    {
-        // Apply movement to the player in FixedUpdate for physics consistency
-        rb.linearVelocity = movement * speed;
-    }
+        // Y-axis rotation (invert when going backwards)
+        float turnDirection = moveInput.x;
+        if (moveInput.y < 0)
+            turnDirection = -turnDirection;
 
-    void RotatePlayer(float x, float y)
-    {
-        // If there is no input, do not rotate the player
-        if (x == 0 && y == 0) return;
+        float turn = turnDirection * rotationSpeed * Time.fixedDeltaTime;
+        Quaternion turnRotation = Quaternion.Euler(0f, turn, 0f);
+        rb.MoveRotation(rb.rotation * turnRotation);
 
-        // Calculate the rotation angle based on input direction
-        float angle = Mathf.Atan2(y, x) * Mathf.Rad2Deg;
-        // Apply the rotation to the player
-        transform.rotation = Quaternion.Euler(0, 0, angle);
-    }
-
-    private void OnDisable()
-    {
-        moveAction.action.Disable();
-    }
+        // por algum motivo o pulo nao funciona por nada. ja tentei refazer o codigo, pesquisar altenativas mas o unity nao reconhece nenhuma
+		if(Input.GetKeyDown("jump"))
+		{
+		rb.AddForce(Vector3.up*jumpForce, ForceMode.VelocityChange);
+    	}
+}
 }
